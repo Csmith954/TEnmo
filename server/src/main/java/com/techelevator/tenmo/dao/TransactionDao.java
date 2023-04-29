@@ -16,6 +16,7 @@ public interface TransactionDao {
     public Transaction requestMoney(String senderName, String receiverName, double transferAmount);
     public Transaction respondToRequest(boolean yesOrNo, Transaction pendingTransaction);
     public List<Transaction>  getTransactionsByStatusForUser(String status, int userId);
+    public String findUsernameByIdTransaction(int userId);
 
 
 

@@ -1,5 +1,6 @@
 package com.techelevator.tenmo.dao;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.techelevator.dao.BaseDaoTests;
 import com.techelevator.tenmo.model.Account;
 import com.techelevator.tenmo.model.Transaction;
@@ -71,4 +72,42 @@ public class JdbcTransactionDaoTest extends BaseDaoTests {
         Account actual = sut.getSenderAccount("bob");
         Assert.assertNotEquals(expected, actual.getUserId());
     }
+    @Test
+    public void requestMoneyReturnsNewTransaction(){
+        int expected = 3003;
+        Transaction actual = sut.requestMoney("bob", "user", 100);
+        Assert.assertEquals(expected, actual.getTransactionId());
+    }
+
+    @Test
+    public void requestMoneyReturnsPendingStatus(){
+        String expected = "pending";
+        Transaction actual = sut.requestMoney("bob", "user", 100);
+        Assert.assertEquals(expected, actual.getTransferStatus());
+    }
+    @Test
+    public void respondToRequestReturnsUpdatedStatusIfAccepted(){
+        String expected = "approved";
+        Transaction pending = sut.getTransactionById(3003);
+        Transaction actual = sut.respondToRequest(true, pending );
+        Assert.assertEquals(expected, actual.getTransferStatus());
+    }
+
+    @Test
+    public void respondToRequestReturnsUpdatedStatusIfRejected(){
+        String expected = "rejected";
+        Transaction pending = sut.getTransactionById(3003);
+        Transaction actual = sut.respondToRequest(false, pending );
+        Assert.assertEquals(expected, actual.getTransferStatus());
+    }
+
+    @Test
+    public void getTransactionByStatusForUserReturnsCorrectList(){
+        int expected = 1;
+        List<Transaction> actual = sut.getTransactionsByStatusForUser("pending", 1002);
+        Assert.assertEquals(expected, actual.size());
+    }
+
+
+
 }

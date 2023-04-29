@@ -62,7 +62,8 @@ VALUES (1001, 1000),
 
 INSERT INTO transactions (user_1_id, user_2_id, transfer_ammount, transfer_status)
 VALUES (1001, 1002, 200, 'Approved'),
-        (1002, 1001, 100, 'Approved');
+        (1002, 1001, 100, 'Approved'),
+        (1001, 1002, 100, 'pending');
 
 
 COMMIT;

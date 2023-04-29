@@ -77,7 +77,7 @@ public class JdbcTransactionDao implements TransactionDao {
         //check if the request is valid to be sent
         if(transferAmount > 0 && (!senderName.equals(receiverName))){
             //create a transaction and add to table, set to pending status
-            String sql = "INSERT INTO transaction (transfer_ammount, user_1_id, user_2_id, transfer_status) VALUES (?, (SELECT user_id FROM tenmo_user WHERE username = ?), " +
+            String sql = "INSERT INTO transactions (transfer_ammount, user_1_id, user_2_id, transfer_status) VALUES (?, (SELECT user_id FROM tenmo_user WHERE username = ?), " +
                     "(SELECT user_id FROM tenmo_user WHERE username = ?), ?) RETURNING transaction_id;";
             int transactionId = jdbctemplate.queryForObject(sql, Integer.class,transferAmount, senderName, receiverName, "pending");
             //set the var with the new info
@@ -98,9 +98,30 @@ public class JdbcTransactionDao implements TransactionDao {
     public Transaction respondToRequest(boolean yesOrNo, Transaction pendingTransaction) {
         //if the user approves the transaction, check if the senders balance can cover the transaction and run sendMoney()
         Transaction finalTransaction = pendingTransaction;
-        Account senderAccount = getSenderAccountById(pendingTransaction.getUser1Id());
-        if(yesOrNo && senderAccount.getBalance() > pendingTransaction.getTransferAmmount()){
-            finalTransaction = sendMoney(userDao.findUsernameById(pendingTransaction.getUser1Id()), userDao.findUsernameById(pendingTransaction.getUser2Id()), pendingTransaction.getTransferAmmount());
+//        Account senderAccount = getSenderAccountById(finalTransaction.getUser1Id());
+        double transferAmmount = finalTransaction.getTransferAmmount();
+        int user1Id = finalTransaction.getUser1Id();
+        String user1Name = findUsernameByIdTransaction(user1Id);
+        int user2Id = finalTransaction.getUser2Id();
+        String user2Name = findUsernameByIdTransaction(user2Id);
+
+        if(yesOrNo){
+            Account account1 = getSenderAccount(user1Name); // need the sender account info to check if balance being sent is valid
+            double senderBalance = account1.getBalance(); // setting the sender balance onto variable
+
+            if (senderBalance > transferAmmount && transferAmmount > 0 && (!user1Name.equals(user2Name))){
+                String sql = "INSERT INTO transactions (transfer_ammount, user_1_id, user_2_id, transfer_status) VALUES (?, (SELECT user_id FROM tenmo_user WHERE username = ?), " +
+                        "(SELECT user_id FROM tenmo_user WHERE username = ?), ?) RETURNING transaction_id;";
+                int transactionId = jdbctemplate.queryForObject(sql, Integer.class, transferAmmount, user1Name, user2Name, "approved"); // getting a transaction id after creating a transaction with the parameter info
+                finalTransaction = getTransactionById(transactionId); // setting the transaction
+
+                // update the account balances to reflect the transfer
+                String balanceSql = "UPDATE account SET balance = balance - ? WHERE user_id = (SELECT user_id FROM tenmo_user WHERE username = ?); UPDATE account SET balance = balance + ? WHERE user_id =(SELECT user_id FROM tenmo_user WHERE username = ?);";
+                int result = jdbctemplate.update(balanceSql, transferAmmount, user1Name, transferAmmount, user2Name);
+                if (result == 0){
+                    throw new ResponseStatusException(HttpStatus.NOT_MODIFIED);
+                }
+            }
         } else {
             finalTransaction.setTransferStatus("rejected");
         }
@@ -136,12 +157,24 @@ public class JdbcTransactionDao implements TransactionDao {
     @Override
     public Account getSenderAccountById(int userId) {
         Account sender = null;
-        String sql = "SELECT * FROM account WHERE user_id = (SELECT user_id FROM tenmo_user WHERE user_id = ?);";
+        String sql = "SELECT * FROM account WHERE user_id = ?;";
         SqlRowSet rowSet = jdbctemplate.queryForRowSet(sql, userId);
         if (rowSet.next()){
             sender = mapRowToAccount(rowSet);
         }
         return sender;
+    }
+
+    @Override
+    public String findUsernameByIdTransaction(int userId) {
+        String sql = "SELECT * FROM tenmo_user WHERE user_id = ?;";
+        String name = "";
+        SqlRowSet rowSet = jdbctemplate.queryForRowSet(sql, userId);
+        if(rowSet.next()){
+            User user = mapRowToUser(rowSet);
+            name = user.getUsername();
+        }
+        return name;
     }
 
 
@@ -163,6 +196,16 @@ public class JdbcTransactionDao implements TransactionDao {
         account.setBalance(rs.getDouble("balance"));
 
         return account;
+    }
+
+    private User mapRowToUser(SqlRowSet rs) {
+        User user = new User();
+        user.setId(rs.getInt("user_id"));
+        user.setUsername(rs.getString("username"));
+        user.setPassword(rs.getString("password_hash"));
+        user.setActivated(true);
+        user.setAuthorities("USER");
+        return user;
     }
 
 }

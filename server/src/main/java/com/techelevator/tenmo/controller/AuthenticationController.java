@@ -108,6 +108,22 @@ public class AuthenticationController {
        return transaction;
     }
 
+    @RequestMapping(path = "/transactions/request", method = RequestMethod.POST)
+    public Transaction requestMoney(@RequestBody Transaction transaction){
+        String userOne = userDao.findUsernameById(transaction.getUser1Id());
+        String userTwo = userDao.findUsernameById(transaction.getUser2Id());
+        double transferAmount = transaction.getTransferAmmount();
+        transaction = transactionDao.requestMoney(userOne, userTwo, transferAmount);
+        return transaction;
+    }
+
+    @RequestMapping(path = "/transactions/respond", method = RequestMethod.POST)
+        public Transaction respondToRequest(@RequestParam boolean acceptOrReject, @RequestParam int transactionId){
+        Transaction transaction = transactionDao.getTransactionById(transactionId);
+        Transaction updated = transactionDao.respondToRequest(acceptOrReject, transaction);
+        return updated;
+    }
+
     /**
      * Object to return as body in JWT Authentication.
      */
