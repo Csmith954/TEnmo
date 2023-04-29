@@ -12,6 +12,10 @@ public interface TransactionDao {
     public Transaction sendMoney( String senderName, String receiverName, double transferAmount);
 //    List<User> findAllMinusCurrentUser(List<User> userList);
     public Account getSenderAccount(String senderName);
+    public Account getSenderAccountById(int userId);
+    public Transaction requestMoney(String senderName, String receiverName, double transferAmount);
+    public Transaction respondToRequest(boolean yesOrNo, Transaction pendingTransaction);
+    public List<Transaction>  getTransactionsByStatusForUser(String status, int userId);
 
 
 

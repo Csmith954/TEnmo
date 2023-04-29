@@ -17,6 +17,7 @@ import java.util.concurrent.TransferQueue;
 @Component
 public class JdbcTransactionDao implements TransactionDao {
     private JdbcTemplate jdbctemplate;
+    private JdbcUserDao userDao;
 
     public JdbcTransactionDao(JdbcTemplate jdbctemplate) {
         this.jdbctemplate = jdbctemplate;
@@ -58,7 +59,7 @@ public class JdbcTransactionDao implements TransactionDao {
             transaction = getTransactionById(transactionId); // setting the transaction
 
             // update the account balances to reflect the transfer
-            String balanceSql = "UPDATE account SET balance = balance - ? WHERE user_id = (SELECT user_id FROM tenmo_user WHERE username = ?); UPDATE account SET balance = balance + ? WHERE user_id =(SELECT user_id FROM tenmo_user WHERE username = ?)";
+            String balanceSql = "UPDATE account SET balance = balance - ? WHERE user_id = (SELECT user_id FROM tenmo_user WHERE username = ?); UPDATE account SET balance = balance + ? WHERE user_id =(SELECT user_id FROM tenmo_user WHERE username = ?);";
             int result = jdbctemplate.update(balanceSql, transferAmount, senderName, transferAmount, receiverName);
             if (result == 0){
                 throw new ResponseStatusException(HttpStatus.NOT_MODIFIED);
@@ -70,10 +71,73 @@ public class JdbcTransactionDao implements TransactionDao {
     }
 
     @Override
+    public Transaction requestMoney(String senderName, String receiverName, double transferAmount) {
+        //create a transaction object
+        Transaction request = null;
+        //check if the request is valid to be sent
+        if(transferAmount > 0 && (!senderName.equals(receiverName))){
+            //create a transaction and add to table, set to pending status
+            String sql = "INSERT INTO transaction (transfer_ammount, user_1_id, user_2_id, transfer_status) VALUES (?, (SELECT user_id FROM tenmo_user WHERE username = ?), " +
+                    "(SELECT user_id FROM tenmo_user WHERE username = ?), ?) RETURNING transaction_id;";
+            int transactionId = jdbctemplate.queryForObject(sql, Integer.class,transferAmount, senderName, receiverName, "pending");
+            //set the var with the new info
+            request = getTransactionById(transactionId);
+
+//            String balanceSql = "UPDATE account SET balance = balance - ? WHERE user_id = (SELECT user_id FROM tenmo_user WHERE username = ?); UPDATE account SET balance = balance + ? WHERE user_id =(SELECT user_id FROM tenmo_user WHERE username = ?);";
+//            int result = jdbctemplate.update(balanceSql, transferAmount, senderName, transferAmount, receiverName);
+//            if (result == 0){
+//                throw new ResponseStatusException(HttpStatus.NOT_MODIFIED);
+//            }
+        } else {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+        return request;
+    }
+
+    @Override
+    public Transaction respondToRequest(boolean yesOrNo, Transaction pendingTransaction) {
+        //if the user approves the transaction, check if the senders balance can cover the transaction and run sendMoney()
+        Transaction finalTransaction = pendingTransaction;
+        Account senderAccount = getSenderAccountById(pendingTransaction.getUser1Id());
+        if(yesOrNo && senderAccount.getBalance() > pendingTransaction.getTransferAmmount()){
+            finalTransaction = sendMoney(userDao.findUsernameById(pendingTransaction.getUser1Id()), userDao.findUsernameById(pendingTransaction.getUser2Id()), pendingTransaction.getTransferAmmount());
+        } else {
+            finalTransaction.setTransferStatus("rejected");
+        }
+        return finalTransaction;
+    }
+
+    @Override
+    public List<Transaction> getTransactionsByStatusForUser(String status, int userId) {
+        //create a list var and populate it with the users transactions filitered by status
+        List<Transaction> allTransactionsByUser = getAllTransactionsByUser(userId);
+        List<Transaction> filteredTransactions = new ArrayList<>();
+
+        //use a for loop to check the status and write to new list
+        for (Transaction transaction : allTransactionsByUser){
+            if(transaction.getTransferStatus().equals(status)){
+                filteredTransactions.add(transaction);
+            }
+        }
+        return filteredTransactions;
+    }
+
+    @Override
     public Account getSenderAccount(String senderName) {
         Account sender = null;
         String sql = "SELECT * FROM account WHERE user_id = (SELECT user_id FROM tenmo_user WHERE username = ?);";
         SqlRowSet rowSet = jdbctemplate.queryForRowSet(sql, senderName);
+        if (rowSet.next()){
+            sender = mapRowToAccount(rowSet);
+        }
+        return sender;
+    }
+
+    @Override
+    public Account getSenderAccountById(int userId) {
+        Account sender = null;
+        String sql = "SELECT * FROM account WHERE user_id = (SELECT user_id FROM tenmo_user WHERE user_id = ?);";
+        SqlRowSet rowSet = jdbctemplate.queryForRowSet(sql, userId);
         if (rowSet.next()){
             sender = mapRowToAccount(rowSet);
         }
