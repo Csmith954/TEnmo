@@ -124,6 +124,25 @@ public class AuthenticationController {
         return updated;
     }
 
+    @RequestMapping(path = "/account/addaccount", method = RequestMethod.POST)
+    public Account addAccountToUser(Principal principal){
+        int userId = userDao.findIdByUsername(principal.getName());
+       return accountDao.addAccountToUserId(userId);
+    }
+
+    @RequestMapping(path = "/account", method = RequestMethod.GET)
+    public Account getAccountByUser(Principal principal){
+        return accountDao.getAccountByUser(principal.getName());
+    }
+
+    @RequestMapping(path = "/account/list", method = RequestMethod.GET)
+    public List<Account> getAllAccountsByUser(Principal principal){
+        int userId = userDao.findIdByUsername(principal.getName());
+        return accountDao.listAccountsByUserId(userId);
+    }
+
+
+
     /**
      * Object to return as body in JWT Authentication.
      */

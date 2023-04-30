@@ -9,6 +9,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.util.List;
+
 import static org.junit.Assert.*;
 
 public class JdbcAccountDaoTest extends BaseDaoTests {
@@ -37,6 +39,21 @@ public class JdbcAccountDaoTest extends BaseDaoTests {
         double user1Balance = sut.getAccountBalanceByUser("user");
         Assert.assertNotEquals(expected, user1Balance, 0.01);
 
+    }
+
+    @Test
+    public void addAccountToUserReturnsNewAccountId(){
+        int expected = 2003;
+        Account actual = sut.addAccountToUserId(1001);
+        Assert.assertEquals(expected, actual.getAccountId());
+    }
+
+    @Test
+    public void listAccountsByUserIdReturnsAllAccounts(){
+        int expected = 2;
+        sut.addAccountToUserId(1001);
+        List<Account> actual = sut.listAccountsByUserId(1001);
+        Assert.assertEquals(expected, actual.size());
     }
 
 }
