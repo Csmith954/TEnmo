@@ -8,8 +8,6 @@
 - [Usage](#usage)
 - [Endpoints](#endpoints)
 - [Technologies Used](#technologies-used)
-- [Contributing](#contributing)
-- [License](#license)
 
 ## Installation
 
@@ -157,19 +155,6 @@ Use Postman to make requests to the desired endpoints by providing the necessary
 - PostgreSQL: Relational database management system used to store user and transaction data.
 - Postman: API development and testing tool used to interact with the TEnmo endpoints.
 
-## Contributing
-
-Contributions to this project are welcome. To contribute, please follow these steps:
-
-1. Fork the repository.
-2. Create a new branch.
-3. Make your changes and commit them.
-4. Push your changes to your forked repository.
-5. Submit a pull request detailing your changes.
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
 
 ## Disclaimer
 
